@@ -6,7 +6,7 @@ import java.sql.SQLException;
 public class DatabaseManager {
     private static final String URL = "jdbc:mysql://localhost:3306/homes";
     private static final String USERNAME = "root";
-    private static final String PASSWORD = "root";
+    private static final String PASSWORD = "";
 
     public static void insertUser(String username, String password, String role) throws SQLException {
         try (Connection conn = DriverManager.getConnection(URL, USERNAME, PASSWORD)) {

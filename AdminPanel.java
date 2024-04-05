@@ -8,7 +8,7 @@ public class AdminPanel extends JFrame implements ActionListener {
     // Database connection parameters
     private static final String JDBC_URL = "jdbc:mysql://localhost:3306/homes";
     private static final String USERNAME = "root";
-    private static final String PASSWORD = "root";
+    private static final String PASSWORD = "";
 
     // GUI components
     private JList<String> requestList;
