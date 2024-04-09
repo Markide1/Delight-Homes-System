@@ -3,6 +3,8 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class UserPanel extends JFrame implements ActionListener {
     // Database connection parameters
@@ -11,7 +13,6 @@ public class UserPanel extends JFrame implements ActionListener {
     private static final String PASSWORD = "";
 
     // GUI components
-    private JButton viewHousesButton;
     private JButton applyButton;
     private JButton cancelButton;
     private JButton checkStatusButton; // Added check status button
@@ -30,25 +31,22 @@ public class UserPanel extends JFrame implements ActionListener {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(10, 10, 10, 10);
 
-        viewHousesButton = createButton("View Available Houses");
         applyButton = createButton("Apply for a House");
         cancelButton = createButton("Cancel House Request");
         checkStatusButton = createButton("Check Status"); // Added check status button
         logoutButton = createButton("Logout");
 
-        panel.add(viewHousesButton, gbc);
         panel.add(applyButton, gbc);
         panel.add(cancelButton, gbc);
-        panel.add(checkStatusButton, gbc); // Added check status button
-        panel.add(logoutButton, gbc);
+        panel.add(checkStatusButton, gbc); 
+        panel.add(logoutButton, gbc); // Added logout button
 
         add(panel);
 
-        viewHousesButton.addActionListener(this);
         applyButton.addActionListener(this);
         cancelButton.addActionListener(this);
-        checkStatusButton.addActionListener(this); // Register check status button
-        logoutButton.addActionListener(this);
+        checkStatusButton.addActionListener(this); 
+        logoutButton.addActionListener(this); // Added action listener for logout button
 
         pack();
         setLocationRelativeTo(null);
@@ -62,9 +60,7 @@ public class UserPanel extends JFrame implements ActionListener {
     }
 
     public void actionPerformed(ActionEvent e) {
-        if (e.getSource() == viewHousesButton) {
-            viewAvailableHouses();
-        } else if (e.getSource() == applyButton) {
+        if (e.getSource() == applyButton) {
             applyForHousePrompt();
         } else if (e.getSource() == cancelButton) {
             cancelHouseRequestPrompt();
@@ -72,85 +68,121 @@ public class UserPanel extends JFrame implements ActionListener {
             checkStatus();
         } else if (e.getSource() == logoutButton) {
             dispose();
+            // Open main page
             Main main = new Main();
             main.setVisible(true);
         }
     }
 
-    private void viewAvailableHouses() {
+    private void applyForHousePrompt() {
+        List<House> availableHouses = getAvailableHouses();
+        if (availableHouses.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No available houses at the moment.");
+        } else {
+            StringBuilder message = new StringBuilder("Available Houses:\n");
+            for (House house : availableHouses) {
+                message.append("House ID: ").append(house.getId())
+                        .append(", Description: ").append(house.getDescription())
+                        .append(", Available Units: ").append(house.getAvailableUnits())
+                        .append("\n");
+            }
+            String selectedHouseId = JOptionPane.showInputDialog(this, message.toString(), "Enter House ID");
+            if (selectedHouseId != null && !selectedHouseId.isEmpty()) {
+                try {
+                    int houseId = Integer.parseInt(selectedHouseId);
+                    applyForHouse(houseId);
+                } catch (NumberFormatException ex) {
+                    JOptionPane.showMessageDialog(this, "Invalid input for House ID.");
+                }
+            }
+        }
+    }
+
+    private List<House> getAvailableHouses() {
+        List<House> availableHouses = new ArrayList<>();
         try (Connection connection = DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD)) {
             String query = "SELECT * FROM Houses WHERE AvailableUnits > 0";
             try (Statement statement = connection.createStatement();
                  ResultSet resultSet = statement.executeQuery(query)) {
-                StringBuilder message = new StringBuilder("Available Houses:\n");
                 while (resultSet.next()) {
                     int houseId = resultSet.getInt("HouseID");
-                    String address = resultSet.getString("Address");
+                    String description = resultSet.getString("Description");
                     int availableUnits = resultSet.getInt("AvailableUnits");
-                    message.append("HouseID: ").append(houseId).append(", Address: ").append(address)
-                            .append(", Available Units: ").append(availableUnits).append("\n");
-                }
-                if (message.toString().equals("Available Houses:\n")) {
-                    JOptionPane.showMessageDialog(this, "No available houses at the moment.");
-                } else {
-                    JOptionPane.showMessageDialog(this, message.toString());
+                    availableHouses.add(new House(houseId, description, availableUnits));
                 }
             }
         } catch (SQLException ex) {
             JOptionPane.showMessageDialog(this, "Failed to fetch available houses: " + ex.getMessage());
             ex.printStackTrace();
         }
+        return availableHouses;
     }
 
-    private void applyForHousePrompt() {
-        String houseIdString = JOptionPane.showInputDialog("Enter HouseID:");
-        if (houseIdString != null && !houseIdString.isEmpty()) {
-            try {
-                int houseId = Integer.parseInt(houseIdString);
-                int requestId = applyForHouse(houseId);
-                if (requestId != -1) {
-                    JOptionPane.showMessageDialog(this, "Application submitted successfully! Your Request ID is: " + requestId);
-                } else {
-                    JOptionPane.showMessageDialog(this, "Failed to submit application.");
-                }
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(this, "Invalid input for HouseID.");
-            }
-        }
-    }
-
-    private int applyForHouse(int houseId) {
+    private void applyForHouse(int houseId) {
         int userId = getUserId();
         try (Connection connection = DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD)) {
             String query = "INSERT INTO Requests (HouseID, UserID, Status) VALUES (?, ?, 'Pending')";
-            try (PreparedStatement statement = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
+            try (PreparedStatement statement = connection.prepareStatement(query)) {
                 statement.setInt(1, houseId);
                 statement.setInt(2, userId);
                 int rowsInserted = statement.executeUpdate();
                 if (rowsInserted > 0) {
-                    ResultSet generatedKeys = statement.getGeneratedKeys();
-                    if (generatedKeys.next()) {
-                        return generatedKeys.getInt(1);
-                    }
+                    JOptionPane.showMessageDialog(this, "Application submitted successfully!");
+                } else {
+                    JOptionPane.showMessageDialog(this, "Failed to submit application.");
                 }
             }
         } catch (SQLException ex) {
             JOptionPane.showMessageDialog(this, "Failed to submit application: " + ex.getMessage());
             ex.printStackTrace();
         }
-        return -1;
     }
 
     private void cancelHouseRequestPrompt() {
-        String requestIdString = JOptionPane.showInputDialog("Enter Request ID:");
-        if (requestIdString != null && !requestIdString.isEmpty()) {
-            try {
-                int requestId = Integer.parseInt(requestIdString);
-                cancelHouseRequest(requestId);
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(this, "Invalid input for Request ID.");
+        List<Request> userRequests = getUserRequests();
+        if (userRequests.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "You have no pending requests to cancel.");
+        } else {
+            StringBuilder message = new StringBuilder("Your Pending Requests:\n");
+            for (Request request : userRequests) {
+                message.append("Request ID: ").append(request.getRequestId())
+                        .append(", House ID: ").append(request.getHouseId())
+                        .append(", Status: ").append(request.getStatus())
+                        .append("\n");
+            }
+            String selectedRequestId = JOptionPane.showInputDialog(this, message.toString(), "Enter Request ID");
+            if (selectedRequestId != null && !selectedRequestId.isEmpty()) {
+                try {
+                    int requestId = Integer.parseInt(selectedRequestId);
+                    cancelHouseRequest(requestId);
+                } catch (NumberFormatException ex) {
+                    JOptionPane.showMessageDialog(this, "Invalid input for Request ID.");
+                }
             }
         }
+    }
+
+    private List<Request> getUserRequests() {
+        List<Request> userRequests = new ArrayList<>();
+        int userId = getUserId();
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD)) {
+            String query = "SELECT * FROM Requests WHERE UserID = ?";
+            try (PreparedStatement statement = connection.prepareStatement(query)) {
+                statement.setInt(1, userId);
+                try (ResultSet resultSet = statement.executeQuery()) {
+                    while (resultSet.next()) {
+                        int requestId = resultSet.getInt("RequestID");
+                        int houseId = resultSet.getInt("HouseID");
+                        String status = resultSet.getString("Status");
+                        userRequests.add(new Request(requestId, houseId, status));
+                    }
+                }
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Failed to fetch user requests: " + ex.getMessage());
+            ex.printStackTrace();
+        }
+        return userRequests;
     }
 
     private void cancelHouseRequest(int requestId) {
@@ -223,5 +255,53 @@ public class UserPanel extends JFrame implements ActionListener {
             UserPanel userPanel = new UserPanel();
             userPanel.setVisible(true);
         });
+    }
+}
+
+class House {
+    private int id;
+    private String description;
+    private int availableUnits;
+
+    public House(int id, String description, int availableUnits) {
+        this.id = id;
+        this.description = description;
+        this.availableUnits = availableUnits;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public int getAvailableUnits() {
+        return availableUnits;
+    }
+}
+
+class Request {
+    private int requestId;
+    private int houseId;
+    private String status;
+
+    public Request(int requestId, int houseId, String status) {
+        this.requestId = requestId;
+        this.houseId = houseId;
+        this.status = status;
+    }
+
+    public int getRequestId() {
+        return requestId;
+    }
+
+    public int getHouseId() {
+        return houseId;
+    }
+
+    public String getStatus() {
+        return status;
     }
 }
