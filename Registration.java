@@ -16,6 +16,7 @@ public class Registration extends JFrame implements ActionListener {
     // GUI components
     private JTextField usernameField;
     private JPasswordField passwordField;
+    private JTextField emailField; // Added email field
     private JButton registerButton;
     private JButton backButton;
 
@@ -32,8 +33,10 @@ public class Registration extends JFrame implements ActionListener {
         usernameField = new JTextField(20);
         JLabel passwordLabel = new JLabel("Password:");
         passwordField = new JPasswordField(20);
+        JLabel emailLabel = new JLabel("Email:"); // Added email label
+        emailField = new JTextField(20); // Added email field
         registerButton = new JButton("Register");
-        backButton = new JButton("Back"); 
+        backButton = new JButton("Back");
 
         gbc.gridx = 0;
         gbc.gridy = 0;
@@ -42,6 +45,9 @@ public class Registration extends JFrame implements ActionListener {
         gbc.gridy = 1;
         panel.add(passwordLabel, gbc);
 
+        gbc.gridy = 2; // Row for email field
+        panel.add(emailLabel, gbc); // Add email label
+
         gbc.gridx = 1;
         gbc.gridy = 0;
         panel.add(usernameField, gbc);
@@ -49,8 +55,11 @@ public class Registration extends JFrame implements ActionListener {
         gbc.gridy = 1;
         panel.add(passwordField, gbc);
 
+        gbc.gridy = 2; // Row for email field
+        panel.add(emailField, gbc); // Add email field
+
         gbc.gridx = 0;
-        gbc.gridy = 2;
+        gbc.gridy = 3; // Adjust row for buttons
         panel.add(registerButton, gbc);
 
         gbc.gridx = 1;
@@ -60,7 +69,7 @@ public class Registration extends JFrame implements ActionListener {
 
         // Register action listener for the register button
         registerButton.addActionListener(this);
-        backButton.addActionListener(this); 
+        backButton.addActionListener(this);
 
         // Set frame size and center on screen
         pack();
@@ -72,9 +81,10 @@ public class Registration extends JFrame implements ActionListener {
         if (e.getSource() == registerButton) {
             String username = usernameField.getText();
             String password = new String(passwordField.getPassword());
+            String email = emailField.getText(); // Get email from text field
 
             // Insert user data into the database
-            if (insertUserData(username, password)) {
+            if (insertUserData(username, password, email)) {
                 // Clear fields after successful registration
                 clearFields();
 
@@ -95,12 +105,13 @@ public class Registration extends JFrame implements ActionListener {
     }
 
     // Method to insert user data into the database
-    private boolean insertUserData(String username, String password) {
+    private boolean insertUserData(String username, String password, String email) {
         try (Connection connection = DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD)) {
-            String query = "INSERT INTO Users (username, password, role) VALUES (?, ?, 'User')";
+            String query = "INSERT INTO Users (username, password, email, role) VALUES (?, ?, ?, 'User')"; // Include email in the query
             PreparedStatement statement = connection.prepareStatement(query);
             statement.setString(1, username);
             statement.setString(2, password);
+            statement.setString(3, email); // Set email parameter
             int rowsInserted = statement.executeUpdate();
             if (rowsInserted > 0) {
                 JOptionPane.showMessageDialog(this, "Registration successful!");
@@ -118,6 +129,7 @@ public class Registration extends JFrame implements ActionListener {
     private void clearFields() {
         usernameField.setText("");
         passwordField.setText("");
+        emailField.setText(""); // Clear email field
     }
 
     // Method to open the UserPanel with the registered username
